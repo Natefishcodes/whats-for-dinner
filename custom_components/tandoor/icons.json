@@ -1,0 +1,27 @@
+{
+  "entity": {
+    "button": {
+      "suggest_another": {
+        "default": "mdi:dice-multiple"
+      }
+    },
+    "calendar": {
+      "meal_plan": {
+        "default": "mdi:calendar-star"
+      }
+    },
+    "image": {
+      "dinner_photo": {
+        "default": "mdi:image"
+      }
+    },
+    "sensor": {
+      "dinner_tonight": {
+        "default": "mdi:silverware-variant"
+      },
+      "meals_today": {
+        "default": "mdi:food"
+      }
+    }
+  }
+}

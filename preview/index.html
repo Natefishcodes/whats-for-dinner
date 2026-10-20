@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tandoor Dinner Card preview</title>
+<style>
+  /* Stand-ins for Home Assistant's theme variables and elements, so the card renders outside HA. */
+  :root {
+    --primary-color: #03a9f4; --primary-text-color: #1c1c1e; --secondary-text-color: #5f6368;
+    --secondary-background-color: #eef0f3; --card-background-color: #fff; --text-primary-color: #fff;
+    --red-color: #e2342b; --yellow-color: #ffc72c; --green-color: #43a047;
+    font-family: Roboto, system-ui, -apple-system, sans-serif;
+  }
+  body { margin: 0; padding: 24px 16px; background: #f4f5f7; color: var(--primary-text-color); }
+  body.dark { --primary-text-color: #e8eaed; --secondary-text-color: #a0a4ab; --secondary-background-color: #2a2d33;
+    --card-background-color: #1e2024; background: #111316; }
+  ha-card { display: block; background: var(--card-background-color); border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.12); color: var(--primary-text-color); }
+  ha-icon { display: inline-block; width: var(--mdc-icon-size, 24px); height: var(--mdc-icon-size, 24px); }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; max-width: 900px; margin: 0 auto 20px; }
+  .controls button { padding: 8px 12px; border-radius: 8px; border: 1px solid #c8ccd2; background: #fff; cursor: pointer; font: inherit; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; max-width: 900px; margin: 0 auto; }
+  h2 { font-size: 14px; font-weight: 600; margin: 0 0 8px; color: var(--secondary-text-color); }
+</style>
+</head>
+<body>
+<div class="controls">
+  <button data-scene="suggestion">Suggestion (nothing planned)</button>
+  <button data-scene="planned">Planned dinner</button>
+  <button data-scene="noimage">Planned, no photo</button>
+  <button data-scene="none">Empty library</button>
+  <button data-scene="missing">Integration not set up</button>
+  <button id="dark">Toggle dark</button>
+</div>
+<div class="grid">
+  <div><h2>Default</h2><tandoor-dinner-card id="a"></tandoor-dinner-card></div>
+  <div><h2>Mickey accent, titled</h2><tandoor-dinner-card id="b"></tandoor-dinner-card></div>
+  <div><h2>Compact, no photo</h2><tandoor-dinner-card id="c"></tandoor-dinner-card></div>
+</div>
+
+<script type="module">
+  import "../custom_components/tandoor/frontend/tandoor-dinner-card.js";
+
+  const PHOTO = "http://tandoor.local:8080/media/recipes/example.jpg";
+  const FALLBACK = "data:image/svg+xml;utf8," + encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' width='800' height='400'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#c0392b'/><stop offset='1' stop-color='#f39c12'/></linearGradient></defs><rect width='800' height='400' fill='url(#g)'/></svg>`);
+
+  const ideas = [
+    { name: "Garlic Pepper Chicken Stir-Fry (Pad Kratiem Prik Thai)", working_time: 15, waiting_time: 10, servings: 4, rating: 4,
+      description: "A fast Thai stir-fry of chicken with lots of garlic and cracked black pepper, finished with oyster and fish sauce." },
+    { name: "Salsa Mexicana", working_time: 2, waiting_time: 5, servings: 8, rating: null,
+      description: "Salsa Mexicana is a cooked salsa made of blended jalapeños, Roma tomatoes, onions, and garlic with a diced avocado mixed in before serving." },
+  ];
+  let ideaIndex = 0;
+
+  const scenes = {
+    suggestion: () => ({ source: "suggestion", ...ideas[ideaIndex % ideas.length], recipe_id: 63, image: true }),
+    planned: () => ({ source: "meal_plan", meal_type: "Dinner", name: "Chicken Parmesan", working_time: 20, waiting_time: 35,
+      servings: 4, rating: 5, note: "Double the sauce for leftovers", image: true, recipe_id: 12,
+      description: "Crispy breaded cutlets under marinara and bubbling mozzarella, baked until golden." }),
+    noimage: () => ({ ...scenes.planned(), image: false }),
+    none: () => ({ source: "none", name: null }),
+    missing: () => null,
+  };
+
+  function buildHass(scene) {
+    const s = scenes[scene]();
+    const states = {}, entities = {};
+    if (s) {
+      const now = new Date().toISOString();
+      states["sensor.tandoor_recipes_dinner_tonight"] = {
+        state: s.name ?? "unknown", last_updated: now,
+        attributes: { source: s.source, meal_type: s.meal_type, note: s.note, recipe_id: s.recipe_id,
+          recipe_url: s.recipe_id ? `http://tandoor.local:8080/recipe/${s.recipe_id}` : undefined,
+          image_url: s.image ? PHOTO : undefined, description: s.description, working_time: s.working_time,
+          waiting_time: s.waiting_time, total_time: (s.working_time || 0) + (s.waiting_time || 0),
+          servings: s.servings, rating: s.rating },
+      };
+      states["image.tandoor_recipes_dinner_photo"] = s.image
+        ? { state: now, attributes: { entity_picture: PHOTO } } : { state: "unavailable", attributes: {} };
+      states["button.tandoor_recipes_suggest_another"] = { state: now, attributes: {} };
+      for (const [id, key] of [["sensor.tandoor_recipes_dinner_tonight", "dinner_tonight"],
+        ["image.tandoor_recipes_dinner_photo", "dinner_photo"], ["button.tandoor_recipes_suggest_another", "suggest_another"]]) {
+        entities[id] = { entity_id: id, platform: "tandoor", translation_key: key };
+      }
+    }
+    return {
+      states, entities,
+      hassUrl: (p) => p,
+      callService: async (domain, service, data) => {
+        console.log("callService", domain, service, data);
+        await new Promise((r) => setTimeout(r, 600));
+        ideaIndex++;
+        render(current);
+      },
+    };
+  }
+
+  const cards = {
+    a: {},
+    b: { title: "What's for dinner?", accent_color: "red" },
+    c: { image_height: 0, show_description: false, accent_color: "yellow" },
+  };
+  let current = "suggestion";
+  function render(scene) {
+    current = scene;
+    const hass = buildHass(scene);
+    for (const [id, cfg] of Object.entries(cards)) {
+      const el = document.getElementById(id);
+      el.setConfig(cfg);
+      el.hass = hass;
+    }
+  }
+  document.querySelectorAll("[data-scene]").forEach((b) => b.addEventListener("click", () => render(b.dataset.scene)));
+  document.getElementById("dark").addEventListener("click", () => document.body.classList.toggle("dark"));
+  // Photos on the NAS only load on the home network; fall back to a gradient elsewhere.
+  document.addEventListener("error", (e) => { if (e.target.tagName === "IMG" && !e.target.dataset.fb) { e.target.dataset.fb = 1; e.target.src = FALLBACK; } }, true);
+  render(current);
+</script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Tandoor Recipes",
+        "description": "Create an API token in Tandoor under **Settings → API** (read access is enough), then enter it here.",
+        "data": {
+          "url": "Tandoor URL",
+          "api_token": "API token",
+          "verify_ssl": "Verify SSL certificate"
+        },
+        "data_description": {
+          "url": "Address of your Tandoor instance, for example http://192.168.1.20:8080",
+          "api_token": "Paste the token only; the Bearer prefix is optional.",
+          "verify_ssl": "Turn off only for HTTPS with a self-signed certificate."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Tandoor needs a new API token",
+        "description": "The token for {url} was rejected. Create a new one in Tandoor under **Settings → API**.",
+        "data": {
+          "api_token": "API token"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach Tandoor at that address.",
+      "invalid_auth": "Tandoor rejected the API token.",
+      "unknown": "Unexpected response from Tandoor. Check the logs."
+    },
+    "abort": {
+      "already_configured": "This Tandoor instance is already set up.",
+      "reauth_successful": "The new token works."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Tandoor Recipes options",
+        "data": {
+          "dinner_meal_types": "Meal types that count as dinner",
+          "scan_interval": "Update interval"
+        },
+        "data_description": {
+          "dinner_meal_types": "Leave empty to match meal types named Dinner or Supper.",
+          "scan_interval": "How often to check the meal plan."
+        }
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "suggest_another": {
+        "name": "Suggest another"
+      }
+    },
+    "calendar": {
+      "meal_plan": {
+        "name": "Meal plan"
+      }
+    },
+    "image": {
+      "dinner_photo": {
+        "name": "Dinner photo"
+      }
+    },
+    "sensor": {
+      "dinner_tonight": {
+        "name": "Dinner tonight",
+        "state_attributes": {
+          "source": {
+            "name": "Source",
+            "state": {
+              "meal_plan": "Meal plan",
+              "suggestion": "Suggestion",
+              "none": "None"
+            }
+          }
+        }
+      },
+      "meals_today": {
+        "name": "Meals today"
+      }
+    }
+  }
+}
