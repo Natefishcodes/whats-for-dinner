@@ -20,7 +20,7 @@ Everything stays on your network. HA talks to your Tandoor server directly with 
 ### HACS (recommended)
 
 1. Open **HACS**, then use the three-dot menu → **Custom repositories**.
-2. Add `https://github.com/Natefishcodes/ha-tandoor` with the category **Integration**.
+2. Add `https://github.com/Natefishcodes/whats-for-dinner` with the category **Integration**.
 3. Search for **Tandoor Recipes**, download it, and restart Home Assistant.
 
 ### Manual

@@ -258,7 +258,7 @@ if (!customElements.get("tandoor-dinner-card")) {
     name: "Tandoor Dinner",
     description: "Tonight's dinner from your Tandoor meal plan, or a suggestion when nothing is planned.",
     preview: true,
-    documentationURL: "https://github.com/Natefishcodes/ha-tandoor",
+    documentationURL: "https://github.com/Natefishcodes/whats-for-dinner",
   });
   console.info(`%c TANDOOR-DINNER-CARD %c ${CARD_VERSION} `, "background:#e2342b;color:#fff;border-radius:3px 0 0 3px", "background:#333;color:#fff;border-radius:0 3px 3px 0");
 }

@@ -4,10 +4,10 @@
   "codeowners": ["@Natefishcodes"],
   "config_flow": true,
   "after_dependencies": ["frontend", "http"],
-  "documentation": "https://github.com/Natefishcodes/ha-tandoor",
+  "documentation": "https://github.com/Natefishcodes/whats-for-dinner",
   "integration_type": "service",
   "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/Natefishcodes/ha-tandoor/issues",
+  "issue_tracker": "https://github.com/Natefishcodes/whats-for-dinner/issues",
   "requirements": [],
   "version": "0.1.0"
 }
