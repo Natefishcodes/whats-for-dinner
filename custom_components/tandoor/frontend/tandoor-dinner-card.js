@@ -7,13 +7,19 @@
  *   image_entity: image.tandoor_recipes_dinner_photo
  *   suggest_entity: button.tandoor_recipes_suggest_another
  *   title: What's for dinner?
+ *   days: 1                    # 1 = tonight, 3 = next three days, 7 = the week
  *   accent_color: red          # HA color name or any CSS color
  *   image_height: 200
  *   show_stats: true
  *   show_description: true
  */
 
-const CARD_VERSION = "0.1.0";
+const CARD_VERSION = "0.2.0";
+const DAY_OPTIONS = [
+  { value: "1", label: "Tonight" },
+  { value: "3", label: "Next 3 days" },
+  { value: "7", label: "The week" },
+];
 const PLATFORM = "tandoor";
 
 const esc = (value) =>
@@ -48,7 +54,14 @@ class TandoorDinnerCard extends HTMLElement {
             { name: "suggest_entity", selector: { entity: { domain: "button", integration: PLATFORM } } },
           ],
         },
-        { name: "title", selector: { text: {} } },
+        {
+          type: "grid",
+          name: "",
+          schema: [
+            { name: "days", selector: { select: { mode: "dropdown", options: DAY_OPTIONS } } },
+            { name: "title", selector: { text: {} } },
+          ],
+        },
         {
           type: "grid",
           name: "",
@@ -72,8 +85,9 @@ class TandoorDinnerCard extends HTMLElement {
           image_entity: "Photo (auto-detected)",
           suggest_entity: "Suggest button (auto-detected)",
           title: "Title (optional)",
+          days: "Show",
           accent_color: "Accent color",
-          image_height: "Photo height (0 hides it)",
+          image_height: "Photo height (0 hides photos)",
           show_stats: "Show times & servings",
           show_description: "Show description",
         })[s.name],
@@ -85,7 +99,7 @@ class TandoorDinnerCard extends HTMLElement {
   }
 
   setConfig(config) {
-    this._config = { image_height: 200, show_stats: true, show_description: true, ...config };
+    this._config = { image_height: 200, show_stats: true, show_description: true, days: 1, ...config };
     this._signature = undefined;
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
     if (this._hass) this._render();
@@ -96,8 +110,13 @@ class TandoorDinnerCard extends HTMLElement {
     this._render();
   }
 
+  get _days() {
+    const d = Number(this._config.days);
+    return [3, 7].includes(d) ? d : 1;
+  }
+
   getCardSize() {
-    return 6;
+    return this._days === 1 ? 6 : 2 + this._days;
   }
 
   getGridOptions() {
@@ -146,6 +165,10 @@ class TandoorDinnerCard extends HTMLElement {
 
     const planned = source === "meal_plan";
     const c = this._config;
+    if (this._days > 1 && Array.isArray(a.upcoming) && a.upcoming.length) {
+      this._renderDays(a, name, planned, ids, button);
+      return;
+    }
     const picture = image?.state !== "unavailable" ? image?.attributes?.entity_picture : undefined;
     const imgSrc = picture ? this._hass.hassUrl(picture) : safeUrl(a.image_url);
     const height = Number(c.image_height) || 0;
@@ -187,6 +210,45 @@ class TandoorDinnerCard extends HTMLElement {
     this.shadowRoot.innerHTML = this._shell(
       `${hero}<div class="body">${statsHtml}${note}${desc}${actions ? `<div class="actions">${actions}</div>` : ""}</div>`,
     );
+    this.shadowRoot.getElementById("suggest")?.addEventListener("click", () => this._suggest(ids.button));
+  }
+
+  // Several days as a list. Tonight's row falls back to the suggestion when nothing is planned.
+  _renderDays(a, tonightName, plannedTonight, ids, button) {
+    const c = this._config;
+    const photos = (Number(c.image_height) || 0) > 0;
+    const label = (iso, i) => {
+      if (i === 0) return "Tonight";
+      if (i === 1) return "Tomorrow";
+      const d = new Date(`${iso}T12:00:00`);
+      return d.toLocaleDateString(undefined, { weekday: "long" });
+    };
+    const rows = a.upcoming.slice(0, this._days).map((row, i) => {
+      const idea = i === 0 && !row.name && !plannedTonight;
+      const name = row.name || (idea ? tonightName : "");
+      const img = safeUrl(row.image_url || (idea ? a.image_url : ""));
+      const url = safeUrl(row.recipe_url || (idea ? a.recipe_url : ""));
+      const time = row.total_time || (idea ? a.total_time : 0);
+      const date = new Date(`${row.date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      const thumb = photos
+        ? `<span class="thumb">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : `<ha-icon icon="${name ? "mdi:pot-steam" : "mdi:silverware-variant"}"></ha-icon>`}</span>`
+        : "";
+      const what = name
+        ? `<span class="dish">${esc(name)}</span>`
+        : `<span class="dish none">Nothing planned</span>`;
+      const meta = [idea ? "Idea" : "", time ? `${time} min` : ""].filter(Boolean).join(" · ");
+      const inner = `${thumb}<span class="when"><b>${esc(label(row.date, i))}</b><small>${esc(date)}</small></span>
+        <span class="what">${what}${meta ? `<small>${esc(meta)}</small>` : ""}</span>
+        ${url ? `<ha-icon class="go" icon="mdi:chevron-right"></ha-icon>` : ""}`;
+      const cls = `day ${i === 0 ? "today" : ""} ${idea ? "idea" : ""} ${name ? "" : "empty"}`;
+      return url
+        ? `<a class="${cls}" href="${esc(url)}" target="_blank" rel="noopener">${inner}</a>`
+        : `<div class="${cls}">${inner}</div>`;
+    }).join("");
+    const suggest = !plannedTonight && ids.button && button
+      ? `<div class="actions"><button class="btn" id="suggest" ${this._busy ? "disabled" : ""}><ha-icon icon="mdi:dice-multiple"></ha-icon>${this._busy ? "Picking…" : "Another idea for tonight"}</button></div>`
+      : "";
+    this.shadowRoot.innerHTML = this._shell(`<div class="days n${this._days}">${rows}</div>${suggest ? `<div class="body">${suggest}</div>` : ""}`);
     this.shadowRoot.getElementById("suggest")?.addEventListener("click", () => this._suggest(ids.button));
   }
 
@@ -247,6 +309,27 @@ const STYLES = `
   .btn:disabled { opacity: .6; cursor: progress; }
   .btn:focus-visible { outline: 2px solid var(--tdc-accent); outline-offset: 2px; }
   .empty { display: flex; gap: 12px; align-items: center; padding: 20px 16px; color: var(--secondary-text-color); }
+  .days { display: flex; flex-direction: column; padding: 8px; gap: 2px; }
+  .header + .days { padding-top: 10px; }
+  .day { display: grid; grid-template-columns: auto 92px 1fr auto; align-items: center; gap: 12px; padding: 8px 10px;
+    border-radius: 12px; color: inherit; text-decoration: none; }
+  .day:not(:has(.thumb)) { grid-template-columns: 92px 1fr auto; }
+  a.day:hover { background: var(--secondary-background-color); }
+  .day.today { background: color-mix(in srgb, var(--tdc-accent) 12%, transparent); }
+  .thumb { width: 48px; height: 48px; border-radius: 10px; overflow: hidden; display: grid; place-items: center;
+    background: var(--secondary-background-color); }
+  .n7 .thumb { width: 36px; height: 36px; border-radius: 8px; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .thumb ha-icon { --mdc-icon-size: 20px; color: var(--secondary-text-color); }
+  .when { display: flex; flex-direction: column; line-height: 1.2; }
+  .when b { font-weight: 600; font-size: .9rem; }
+  .today .when b { color: var(--tdc-accent); }
+  .when small, .what small { color: var(--secondary-text-color); font-size: .78rem; }
+  .what { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+  .dish { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dish.none { color: var(--secondary-text-color); font-weight: 400; font-style: italic; }
+  .day.idea .dish::before { content: "💡 "; }
+  .go { --mdc-icon-size: 20px; color: var(--secondary-text-color); }
   .empty ha-icon { --mdc-icon-size: 36px; color: var(--tdc-accent); flex: none; }
 `;
 

@@ -33,7 +33,7 @@ class TandoorDinnerTonightSensor(TandoorEntity, SensorEntity):
     """Name of tonight's planned dinner, or today's suggestion when nothing is planned."""
 
     # Long text the recorder does not need to keep a history of.
-    _unrecorded_attributes = frozenset({"description", "keywords", "note"})
+    _unrecorded_attributes = frozenset({"description", "keywords", "note", "upcoming"})
 
     @property
     def native_value(self) -> str | None:
@@ -69,6 +69,17 @@ class TandoorDinnerTonightSensor(TandoorEntity, SensorEntity):
                 keywords=recipe.keywords,
             )
         attrs["servings"] = servings
+        # One row per day for the card's 3-day and week views; name is None when nothing is planned.
+        attrs["upcoming"] = [
+            {
+                "date": day.isoformat(),
+                "name": entry.name if entry else None,
+                "recipe_url": entry.recipe.url if entry and entry.recipe else None,
+                "image_url": entry.recipe.image if entry and entry.recipe else None,
+                "total_time": entry.recipe.total_time if entry and entry.recipe else None,
+            }
+            for day, entry in data.dinners_ahead
+        ]
         return attrs
 
 

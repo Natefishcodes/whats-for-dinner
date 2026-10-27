@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
@@ -35,6 +35,8 @@ class TandoorData:
     entries: list[MealPlanEntry]
     dinner: MealPlanEntry | None
     suggestion: Recipe | None
+    # The planned dinner (or None) for each day of the look-ahead window, starting today.
+    dinners_ahead: list[tuple[date, MealPlanEntry | None]] = field(default_factory=list)
 
     @property
     def source(self) -> str:
@@ -85,11 +87,11 @@ class TandoorCoordinator(DataUpdateCoordinator[TandoorData]):
         chosen = self.config_entry.options.get(CONF_DINNER_MEAL_TYPES) or []
         return {name.casefold() for name in chosen} or set(DEFAULT_DINNER_NAMES)
 
-    def _pick_dinner(self, entries: list[MealPlanEntry], today: date) -> MealPlanEntry | None:
+    def _pick_dinner(self, entries: list[MealPlanEntry], day: date) -> MealPlanEntry | None:
         names = self.dinner_meal_types
         for entry in entries:
             if (
-                local_start(entry).date() == today
+                local_start(entry).date() == day
                 and entry.meal_type is not None
                 and entry.meal_type.name.casefold() in names
             ):
@@ -109,10 +111,12 @@ class TandoorCoordinator(DataUpdateCoordinator[TandoorData]):
         except TandoorError as err:
             raise UpdateFailed(str(err)) from err
 
+        days = [today + timedelta(days=n) for n in range(LOOKAHEAD_DAYS)]
         return TandoorData(
             entries=entries,
             dinner=self._pick_dinner(entries, today),
             suggestion=self._suggestion,
+            dinners_ahead=[(day, self._pick_dinner(entries, day)) for day in days],
         )
 
     async def async_suggest_another(self) -> None:

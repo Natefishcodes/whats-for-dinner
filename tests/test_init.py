@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+from datetime import timedelta
+
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 
 from custom_components.tandoor.api import TandoorAuthError, TandoorConnectionError
 from custom_components.tandoor.const import CONF_DINNER_MEAL_TYPES
@@ -50,6 +54,24 @@ async def test_planned_dinner_beats_lunch(hass: HomeAssistant, config_entry, moc
     assert state.attributes["meal_type"] == "Dinner"
     assert state.attributes["servings"] == 2
     assert hass.states.get(MEALS).state == "2"
+
+
+async def test_upcoming_dinners_cover_the_week(hass: HomeAssistant, config_entry, mock_client) -> None:
+    today_dinner = entry_today(DINNER, recipe(20, "Taco Soup"), eid=3)
+    tomorrow = replace(today_dinner, start=today_dinner.start + timedelta(days=1))
+    mock_client.async_get_meal_plan.return_value = [
+        entry_today(DINNER, recipe(12, "Chicken Parm"), eid=2),
+        entry_today(LUNCH, recipe(5, "Turkey Club"), eid=1),
+        tomorrow,
+    ]
+    await _setup(hass, config_entry)
+
+    upcoming = hass.states.get(SENSOR).attributes["upcoming"]
+    assert len(upcoming) == 7
+    assert upcoming[0]["date"] == dt_util.now().date().isoformat()
+    assert [row["name"] for row in upcoming[:3]] == ["Chicken Parm", "Taco Soup", None]
+    assert upcoming[1]["recipe_url"].endswith("/recipe/20")
+    assert upcoming[1]["total_time"] == 30
 
 
 async def test_custom_dinner_meal_type(hass: HomeAssistant, config_entry, mock_client) -> None:

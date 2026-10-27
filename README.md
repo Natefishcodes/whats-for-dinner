@@ -44,7 +44,7 @@ Copy `custom_components/tandoor` into your Home Assistant `config/custom_compone
 
 | Entity | What it shows |
 | --- | --- |
-| `sensor.tandoor_recipes_dinner_tonight` | Recipe name. Attributes: `source` (`meal_plan` / `suggestion` / `none`), `recipe_url`, `image_url`, `description`, `working_time`, `waiting_time`, `total_time`, `servings`, `rating`, `meal_type`, `note` |
+| `sensor.tandoor_recipes_dinner_tonight` | Recipe name. Attributes: `source` (`meal_plan` / `suggestion` / `none`), `recipe_url`, `image_url`, `description`, `working_time`, `waiting_time`, `total_time`, `servings`, `rating`, `meal_type`, `note`, and `upcoming` (one row per day for the next 7 days: `date`, `name`, `recipe_url`, `image_url`, `total_time`; `name` is empty when nothing is planned) |
 | `sensor.tandoor_recipes_meals_today` | Number of meals planned today, with a `meals` list |
 | `calendar.tandoor_recipes_meal_plan` | The meal plan. Meals with a time on their meal type (e.g. Dinner 18:00) are timed; others are all-day |
 | `image.tandoor_recipes_dinner_photo` | Photo of tonight's recipe |
@@ -60,13 +60,22 @@ Add a card and search for **Tandoor Dinner**, or use YAML:
 type: custom:tandoor-dinner-card
 ```
 
-The card finds its entities automatically. Every option is in the visual editor:
+The card finds its entities automatically. It can show tonight, the next three days, or the whole week:
+
+```yaml
+type: custom:tandoor-dinner-card
+days: 7
+title: This week's dinners
+```
+
+Every option is in the visual editor:
 
 | Option | Default | |
 | --- | --- | --- |
+| `days` | `1` | `1` shows tonight; `3` lists the next three days; `7` lists the week. Tonight falls back to the suggestion when nothing is planned |
 | `title` | none | Card header |
 | `accent_color` | theme primary | An HA color name (`red`, `amber`, …) or any CSS color |
-| `image_height` | `200` | Photo height in px; `0` hides it |
+| `image_height` | `200` | Photo height in px; `0` hides photos (in the 3-day and week views, any value above 0 shows small thumbnails) |
 | `show_stats` | `true` | Prep, cook, total time, servings, rating |
 | `show_description` | `true` | First lines of the recipe description |
 | `entity`, `image_entity`, `suggest_entity` | auto | Only needed with several Tandoor instances |

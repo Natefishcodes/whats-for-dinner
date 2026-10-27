@@ -35,6 +35,8 @@
 </div>
 <div class="grid">
   <div><h2>Default</h2><tandoor-dinner-card id="a"></tandoor-dinner-card></div>
+  <div><h2>Next 3 days</h2><tandoor-dinner-card id="d"></tandoor-dinner-card></div>
+  <div><h2>The week, titled</h2><tandoor-dinner-card id="e"></tandoor-dinner-card></div>
   <div><h2>Mickey accent, titled</h2><tandoor-dinner-card id="b"></tandoor-dinner-card></div>
   <div><h2>Compact, no photo</h2><tandoor-dinner-card id="c"></tandoor-dinner-card></div>
 </div>
@@ -64,6 +66,20 @@
     missing: () => null,
   };
 
+  // A week of dinners: a few planned, some gaps; tonight follows the scene.
+  function week(s) {
+    const plan = [null, { name: "Taco Soup", id: 20, t: 45 }, null, { name: "Garlic Pepper Chicken Stir-Fry", id: 31, t: 25 },
+      { name: "Sheet-Pan Gnocchi", id: 44, t: 30 }, null, { name: "Sunday Roast Chicken", id: 52, t: 90 }];
+    return plan.map((p, i) => {
+      const d = new Date(); d.setDate(d.getDate() + i);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const tonight = i === 0 && s.source === "meal_plan";
+      const row = tonight ? { name: s.name, id: s.recipe_id, t: (s.working_time || 0) + (s.waiting_time || 0) } : p;
+      return { date: iso, name: row?.name ?? null, recipe_url: row ? `http://tandoor.local:8080/recipe/${row.id}` : null,
+        image_url: row && (tonight ? s.image : true) ? PHOTO : null, total_time: row?.t ?? null };
+    });
+  }
+
   function buildHass(scene) {
     const s = scenes[scene]();
     const states = {}, entities = {};
@@ -75,7 +91,7 @@
           recipe_url: s.recipe_id ? `http://tandoor.local:8080/recipe/${s.recipe_id}` : undefined,
           image_url: s.image ? PHOTO : undefined, description: s.description, working_time: s.working_time,
           waiting_time: s.waiting_time, total_time: (s.working_time || 0) + (s.waiting_time || 0),
-          servings: s.servings, rating: s.rating },
+          servings: s.servings, rating: s.rating, upcoming: week(s) },
       };
       states["image.tandoor_recipes_dinner_photo"] = s.image
         ? { state: now, attributes: { entity_picture: PHOTO } } : { state: "unavailable", attributes: {} };
@@ -101,6 +117,8 @@
     a: {},
     b: { title: "What's for dinner?", accent_color: "red" },
     c: { image_height: 0, show_description: false, accent_color: "yellow" },
+    d: { days: 3, accent_color: "red" },
+    e: { days: "7", title: "This week's dinners", image_height: 0 },
   };
   let current = "suggestion";
   function render(scene) {
