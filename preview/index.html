@@ -44,8 +44,7 @@
 <script type="module">
   import "../custom_components/tandoor/frontend/tandoor-dinner-card.js";
 
-  const PHOTO = "http://tandoor.local:8080/media/recipes/example.jpg";
-  const FALLBACK = "data:image/svg+xml;utf8," + encodeURIComponent(
+    const PHOTO = "data:image/svg+xml;utf8," + encodeURIComponent(
     `<svg xmlns='http://www.w3.org/2000/svg' width='800' height='400'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#c0392b'/><stop offset='1' stop-color='#f39c12'/></linearGradient></defs><rect width='800' height='400' fill='url(#g)'/></svg>`);
 
   const ideas = [
@@ -132,8 +131,6 @@
   }
   document.querySelectorAll("[data-scene]").forEach((b) => b.addEventListener("click", () => render(b.dataset.scene)));
   document.getElementById("dark").addEventListener("click", () => document.body.classList.toggle("dark"));
-  // Photos on the NAS only load on the home network; fall back to a gradient elsewhere.
-  document.addEventListener("error", (e) => { if (e.target.tagName === "IMG" && !e.target.dataset.fb) { e.target.dataset.fb = 1; e.target.src = FALLBACK; } }, true);
   render(current);
 </script>
 </body>
